@@ -8,7 +8,7 @@ from unity_connection import send_command_with_retry
 @mcp_for_unity_tool(description="Manage Unity scenes")
 def manage_scene(
     ctx: Context,
-    action: Annotated[Literal["create", "load", "save", "get_hierarchy", "get_active", "get_build_settings"], "Perform CRUD operations on Unity scenes."],
+    action: Annotated[Literal["create", "load", "save", "get_hierarchy", "get_hierarchy_condensed", "get_active", "get_build_settings"], "Perform CRUD operations on Unity scenes."],
     name: Annotated[str,
                     "Scene name. Not required get_active/get_build_settings"] | None = None,
     path: Annotated[str,

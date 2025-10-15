@@ -135,6 +135,11 @@ namespace MCPForUnity.Editor.Tools
                     var gh = GetSceneHierarchy();
                     try { McpLog.Info("[ManageScene] get_hierarchy: exiting", always: false); } catch { }
                     return gh;
+                case "get_hierarchy_condensed":
+                    try { McpLog.Info("[ManageScene] get_hierarchy_condensed: entering", always: false); } catch { }
+                    var ghc = GetSceneHierarchyCondensed();
+                    try { McpLog.Info("[ManageScene] get_hierarchy_condensed: exiting", always: false); } catch { }
+                    return ghc;
                 case "get_active":
                     try { McpLog.Info("[ManageScene] get_active: entering", always: false); } catch { }
                     var ga = GetActiveSceneInfo();
@@ -145,7 +150,7 @@ namespace MCPForUnity.Editor.Tools
                 // Add cases for modifying build settings, additive loading, unloading etc.
                 default:
                     return Response.Error(
-                        $"Unknown action: '{action}'. Valid actions: create, load, save, get_hierarchy, get_active, get_build_settings."
+                        $"Unknown action: '{action}'. Valid actions: create, load, save, get_hierarchy, get_hierarchy_condensed, get_active, get_build_settings."
                     );
             }
         }
@@ -419,6 +424,39 @@ namespace MCPForUnity.Editor.Tools
             }
         }
 
+        private static object GetSceneHierarchyCondensed()
+        {
+            try
+            {
+                try { McpLog.Info("[ManageScene] get_hierarchy_condensed: querying EditorSceneManager.GetActiveScene", always: false); } catch { }
+                Scene activeScene = EditorSceneManager.GetActiveScene();
+                try { McpLog.Info($"[ManageScene] get_hierarchy_condensed: got scene valid={activeScene.IsValid()} loaded={activeScene.isLoaded} name='{activeScene.name}'", always: false); } catch { }
+                if (!activeScene.IsValid() || !activeScene.isLoaded)
+                {
+                    return Response.Error(
+                        "No valid and loaded scene is active to get hierarchy from."
+                    );
+                }
+
+                try { McpLog.Info("[ManageScene] get_hierarchy_condensed: fetching root objects", always: false); } catch { }
+                GameObject[] rootObjects = activeScene.GetRootGameObjects();
+                try { McpLog.Info($"[ManageScene] get_hierarchy_condensed: rootCount={rootObjects?.Length ?? 0}", always: false); } catch { }
+                var hierarchy = rootObjects.Select(go => GetGameObjectDataCondensed(go)).ToList();
+
+                var resp = Response.Success(
+                    $"Retrieved condensed hierarchy for scene '{activeScene.name}'.",
+                    hierarchy
+                );
+                try { McpLog.Info("[ManageScene] get_hierarchy_condensed: success", always: false); } catch { }
+                return resp;
+            }
+            catch (Exception e)
+            {
+                try { McpLog.Error($"[ManageScene] get_hierarchy_condensed: exception {e.Message}"); } catch { }
+                return Response.Error($"Error getting condensed scene hierarchy: {e.Message}");
+            }
+        }
+
         /// <summary>
         /// Recursively builds a data representation of a GameObject and its children.
         /// </summary>
@@ -466,6 +504,31 @@ namespace MCPForUnity.Editor.Tools
                         },
                     }
                 },
+                { "children", childrenData },
+            };
+
+            return gameObjectData;
+        }
+
+        /// <summary>
+        /// Recursively builds a condensed data representation of a GameObject and its children.
+        /// Only includes name, active state, and children - no transform data or other metadata.
+        /// </summary>
+        private static object GetGameObjectDataCondensed(GameObject go)
+        {
+            if (go == null)
+                return null;
+
+            var childrenData = new List<object>();
+            foreach (Transform child in go.transform)
+            {
+                childrenData.Add(GetGameObjectDataCondensed(child.gameObject));
+            }
+
+            var gameObjectData = new Dictionary<string, object>
+            {
+                { "name", go.name },
+                { "activeSelf", go.activeSelf },
                 { "children", childrenData },
             };
 
